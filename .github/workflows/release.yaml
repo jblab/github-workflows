@@ -1,0 +1,47 @@
+# NOT a reusable workflow.
+# Unlike the other files in this directory, this one is internal to this
+# repository: it releases and tags the reusable workflows and actions that
+# live here. Do not call it from other repositories.
+
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+# One release at a time; a queued push still releases after the current run
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write # only needed by the major-tag step below
+
+jobs:
+  release:
+    name: Release version
+    runs-on: ubuntu-latest
+    environment: main
+    steps:
+      - uses: actions/checkout@v6
+
+      # Local reference: releases with the action code from this exact commit
+      - name: Release
+        id: release
+        uses: ./.github/actions/release
+        with:
+          app-client-id: ${{ vars.GHA_BOT_CLIENT_ID }}
+          app-private-key: ${{ secrets.GHA_BOT_PRIVATE_KEY }}
+          repository: ${{ github.repository }}
+          skip-checkout: 'true'
+
+      # Move the floating major tag (e.g. "v1") so callers can pin to it.
+      # new-tag is the bare version ("1.2.3"); the "v" prefix matches
+      # tagFormat in .releaserc.
+      - name: Update major tag
+        if: steps.release.outputs.new-tag != ''
+        env:
+          TAG: ${{ steps.release.outputs.new-tag }}
+        run: |
+          git tag -f "v${TAG%%.*}" "v$TAG"
+          git push -f origin "v${TAG%%.*}"
