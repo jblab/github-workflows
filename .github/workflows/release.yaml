@@ -15,7 +15,7 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: write # only needed by the major-tag step below
+  contents: read
 
 jobs:
   release:
@@ -23,9 +23,10 @@ jobs:
     runs-on: ubuntu-latest
     environment: main
     steps:
+      # Only here so the local action path below resolves. The action
+      # re-checks out with the App token, so every push is made as the App.
       - uses: actions/checkout@v6
 
-      # Local reference: releases with the action code from this exact commit
       - name: Release
         id: release
         uses: ./.github/actions/release
@@ -33,7 +34,6 @@ jobs:
           app-client-id: ${{ vars.GHA_BOT_CLIENT_ID }}
           app-private-key: ${{ secrets.GHA_BOT_PRIVATE_KEY }}
           repository: ${{ github.repository }}
-          skip-checkout: 'true'
 
       # Move the floating major tag (e.g. "v1") so callers can pin to it.
       # new-tag is the bare version ("1.2.3"); the "v" prefix matches
